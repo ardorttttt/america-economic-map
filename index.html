@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>America Economic Map</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>America Economic Map</h1>
+      <p class="tagline">Pillar industries, state by state, east to west</p>
+    </div>
+    <div class="progress" id="progress">
+      <div class="progress-count"><strong id="progress-done">0</strong> of <span id="progress-total">51</span> studied</div>
+      <div class="progress-bar" id="progress-bar" role="img"></div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="map-area" aria-label="Map">
+      <div class="toolbar">
+        <label class="industry-select">
+          <span>Highlight industry</span>
+          <select id="industry"></select>
+        </label>
+        <div class="toggles">
+          <label class="toggle"><input type="checkbox" id="toggle-labels" checked> Labels</label>
+          <label class="toggle"><input type="checkbox" id="toggle-route"> Route</label>
+        </div>
+      </div>
+
+      <div class="map-wrap" id="map-wrap">
+        <svg id="map" role="img" aria-label="Map of the United States by state"></svg>
+        <div class="tooltip" id="tooltip" hidden></div>
+        <div class="zoom-controls">
+          <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+          <button type="button" id="zoom-out" aria-label="Zoom out">&minus;</button>
+          <button type="button" id="zoom-reset" aria-label="Reset view">&#8634;</button>
+        </div>
+      </div>
+
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <aside class="panel" id="panel" aria-live="polite"></aside>
+  </main>
+
+  <script src="vendor/d3.min.js"></script>
+  <script src="vendor/topojson-client.min.js"></script>
+  <script src="data/us-states-topo.js"></script>
+  <script src="data/geo.js"></script>
+  <script src="data/categories.js"></script>
+  <script src="data/studied.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
