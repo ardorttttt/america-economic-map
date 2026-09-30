@@ -329,7 +329,7 @@
     let status;
     if (d) {
       const top = (d.specialties || [])[0];
-      status = top ? `Top specialty: ${esc(top.name)}${has(top.lq) ? ` (LQ ${fmtNum(top.lq)})` : ""}` : "Studied";
+      status = top ? `Top specialty: ${esc(top.name)}${has(top.lq) ? ` (LQ ${top.lq.toFixed(1)})` : ""}` : "Studied";
     } else if (s.code === nextUp()) {
       status = "Up next";
     } else {
@@ -482,7 +482,7 @@
           <button type="button" class="filter-item" data-select="${code}" data-hover="${code}">
             <div class="top">
               <span>${esc(byCode.get(code).name)}${idx === 0 ? `<span class="rank-tag">Top specialty</span>` : ""}</span>
-              ${has(matches[0].lq) ? `<span class="lq-inline">${fmtNum(matches[0].lq)}×</span>` : ""}
+              ${has(matches[0].lq) ? `<span class="lq-inline">${matches[0].lq.toFixed(1)}×</span>` : ""}
             </div>
             <div class="what">${matches.map((m) => esc(m.name)).join(" · ")}</div>
           </button>`).join("")
@@ -564,7 +564,7 @@
               <div class="specialty-name">${esc(sp.name)}</div>
               ${cat ? `<button type="button" class="cat-tag" data-cat="${cat.id}">${esc(cat.name)}</button>` : ""}
             </div>
-            ${has(sp.lq) ? `<div class="lq"><div class="lq-value">${fmtNum(sp.lq)}×</div><div class="lq-label">LQ${has(sp.lqBasis) ? ` · ${esc(sp.lqBasis)}` : ""}</div></div>` : ""}
+            ${has(sp.lq) ? `<div class="lq"><div class="lq-value">${sp.lq.toFixed(1)}×</div><div class="lq-label">LQ${has(sp.lqBasis) ? ` · ${esc(sp.lqBasis)}` : ""}</div></div>` : ""}
           </div>
           ${has(sp.why) ? `<p>${esc(sp.why)}</p>` : ""}
           ${has(sp.players) ? `<div class="meta"><b>Key players:</b> ${sp.players.map(esc).join(", ")}</div>` : ""}
@@ -693,20 +693,20 @@
     STUDIED.forEach(checkData);
 
     applyScale(1);
+    renderProgress();
+    applyHash();
+    window.addEventListener("hashchange", applyHash);
+  }
+
+  function applyHash() {
     const parts = decodeURIComponent(location.hash.slice(1)).split("/");
     state.filter = parts.find((p) => catById.has(p)) || null;
-    const fromHash = parts.map((p) => p.toUpperCase()).find((p) => byCode.has(p)) || null;
+    const code = parts.map((p) => p.toUpperCase()).find((p) => byCode.has(p)) || null;
 
-    renderProgress();
     renderIndustryPicker();
     renderLegend();
-    if (fromHash) {
-      select(fromHash);
-      focusState(fromHash);
-    } else {
-      renderMap();
-      renderPanel();
-    }
+    select(code);
+    if (code) focusState(code);
   }
 
   boot();
