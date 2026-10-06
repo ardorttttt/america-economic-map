@@ -3,4 +3,5 @@
 
 window.STUDIED = [
   "ME",
+  "NH",
 ];

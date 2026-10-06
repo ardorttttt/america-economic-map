@@ -10,7 +10,7 @@ window.CATEGORIES = [
   { id: "aerospace",     name: "Aerospace & Defense",     hint: "Aircraft, space, shipbuilding, defense contractors" },
   { id: "tech",          name: "Tech & Information",      hint: "Software, semiconductors, internet, media, telecom" },
   { id: "finance",       name: "Finance & Insurance",     hint: "Banking, asset management, insurance, credit cards" },
-  { id: "health",        name: "Health & Life Sciences",  hint: "Hospitals, pharma, biotech, medical devices, research universities" },
+  { id: "health",        name: "Health & Education",      hint: "Hospitals, universities, pharma, biotech, medical devices" },
   { id: "tourism",       name: "Tourism & Entertainment", hint: "Travel, hospitality, gaming, film, outdoor recreation" },
   { id: "logistics",     name: "Trade & Logistics",       hint: "Ports, freight rail, trucking, distribution, wholesale" },
   { id: "government",    name: "Government & Military",   hint: "Federal agencies, military bases, public administration" },
