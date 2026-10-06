@@ -72,7 +72,7 @@
   ],
 
   myGuess: "Tourism, forestry, and maple syrup (found by searching).",
-  oneLiner: "Tourism, including skiing and sightseeing themed at maple trees in autumn; maple syrup (over half of the production in the US), dairy, and marble; surprisingly, it has a semiconductor factory (IBM); by the way, it has the lowest GDP in the US.",
+  oneLiner: "Tourism, including skiing and fall-foliage sightseeing; maple syrup (over half of the production in the US), dairy, granite and marble; surprisingly, it has a semiconductor factory (IBM, now GlobalFoundries); by the way, it has the lowest GDP in the US.",
 
   sources: [
     { label: "BEA: GDP by state and industry (SAGDP2), 2025", url: "https://www.bea.gov/data/gdp/gdp-state" },
