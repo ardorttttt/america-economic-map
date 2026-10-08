@@ -15,6 +15,6 @@ This is a learning project: the user is learning US geography and economics by f
    - `gdpRank` is among the 50 states + DC.
 4. Leave `oneLiner` for the user to write, or draft one only if they ask.
 5. Add the code to `data/studied.js`, then run `node tools/check.js`.
-6. Commit as `Add <State> (<CODE>)`.
+6. Commit as `Add <State> (<CODE>)` and `git push`. GitHub Pages redeploys the live site (https://ardorttttt.github.io/america-economic-map/) in about a minute.
 
 Follow the route order in `data/geo.js` unless the user picks a different state.

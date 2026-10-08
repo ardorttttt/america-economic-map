@@ -2,7 +2,9 @@
 
 An interactive map of the pillar industries of all 50 states and DC, filled in one or two states a day while learning US geography along the way.
 
-Open `index.html` in a browser; no build step or server needed.
+**Live map: https://ardorttttt.github.io/america-economic-map/**
+
+Or open `index.html` locally in a browser; no build step or server needed.
 
 ## How the map works
 
@@ -32,7 +34,7 @@ New England → Mid-Atlantic → South Atlantic → East South Central → East 
 2. Research it with real data (see sources below) and fill in `data/states/<CODE>.js`, starting from `data/states/_TEMPLATE.js`.
 3. Write your own `oneLiner`.
 4. Add the code to `data/studied.js`.
-5. Run `node tools/check.js` to validate, then commit.
+5. Run `node tools/check.js` to validate, then commit and push. The live site updates in about a minute.
 
 ## Data sources
 
