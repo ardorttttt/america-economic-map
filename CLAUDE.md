@@ -9,6 +9,8 @@ This is a learning project: the user is learning US geography and economics by f
 
 1. Before researching, ask the user for their guess about what the state lives on. Record it in `myGuess`.
 2. Get real numbers from the sources in README.md (BEA SAGDP2, BLS QCEW, Census) for the latest full year available. Never write figures from memory; if a number can't be found, say so and leave it out.
+   - `python3 tools/research.py <CODE> bea|qcew|group|pop|age` pulls and caches all of these; run it with no arguments for usage.
+   - Verify the stories behind the numbers (companies, history, places) with web sources and cite them.
 3. Copy `data/states/_TEMPLATE.js` to `data/states/<CODE>.js` and fill it in:
    - `specialties`: 2-4 entries, sorted by LQ, each with a specific `why` (geography, resources, history, policy). Use only category ids from `data/categories.js`.
    - `largest`: 3-5 sectors by share of state GDP, with `usShare` when available.

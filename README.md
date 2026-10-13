@@ -54,5 +54,6 @@ data/studied.js                  which states are done
 data/states/<CODE>.js            one file per studied state
 data/us-states-topo.js           state boundaries (us-atlas, Albers USA)
 tools/check.js                   data validator
+tools/research.py                pulls a state's BEA, QCEW and Census numbers
 vendor/                          d3 v7.9.0, topojson-client v3.1.0
 ```
