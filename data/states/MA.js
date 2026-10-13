@@ -72,7 +72,7 @@
   ],
 
   myGuess: "Fishing, tourism, and education.",
-  oneLiner: "Backed by educational power, biotech development is the most concentrated industry in Massachusetts; it is a state that has a high ratio of technology services in GDP.",
+  oneLiner: "Backed by its universities, biotech research is the most concentrated industry in Massachusetts, and professional and technical services make up an unusually large share of its GDP.",
 
   sources: [
     { label: "BEA: GDP by state and industry (SAGDP2), 2025", url: "https://www.bea.gov/data/gdp/gdp-state" },
