@@ -154,7 +154,8 @@ def cmd_age(fips2):
     by_state = {}
     for r in read_csv(fetch(AGE, "agesex.csv"), encoding="latin-1"):
         if r["SUMLEV"] == "040" and r["SEX"] == "0" and r["AGE"] != "999" and r["STATE"] != "72":
-            by_state.setdefault(r["STATE"], {})[int(r["AGE"])] = int(r[f"POPEST{YEAR}_CIV"])
+            # This file writes FIPS codes without the leading zero ("9" for Connecticut).
+            by_state.setdefault(r["STATE"].zfill(2), {})[int(r["AGE"])] = int(r[f"POPEST{YEAR}_CIV"])
     medians = {}
     for st, ages in by_state.items():
         half, seen = sum(ages.values()) / 2, 0
