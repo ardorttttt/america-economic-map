@@ -12,6 +12,7 @@ Or open `index.html` locally in a browser; no build step or server needed.
 - Click a state (or a row in the side panel) to open its profile. Small northeastern states have callout labels on the right, and zooming in shows their labels in place.
 - **Highlight industry** recolors the map for one industry: dark blue where it is the state's top specialty, light blue where it's one of its specialties. The panel lists those states.
 - **Route** draws the study trail. **Labels** toggles the postal codes.
+- **Quiz** hides every label and asks 10 questions: find a state on the map, name a highlighted state, or match a fact (a company, place, specialty, capital) to the studied state it belongs to. Choose studied states only or all 51; fact questions grow as you study more states. Keys: 1-4 to pick, Enter for next, Esc to leave.
 - The URL remembers the view, e.g. `index.html#TX` or `index.html#energy/TX`.
 
 ## Two layers per state

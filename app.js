@@ -41,6 +41,7 @@
     showLabels: true,
     showRoute: false,
     k: 1,
+    quiz: null, // { scope, questions, i, results } while the quiz is open
   };
 
   const isStudied = (code) => STUDIED.includes(code) && !!DATA[code];
@@ -128,7 +129,9 @@
   svg.append("rect")
     .attr("x", VB.x).attr("y", VB.y).attr("width", VB.w).attr("height", VB.h)
     .attr("fill", "transparent")
-    .on("click", () => select(null));
+    .on("click", () => {
+      if (!state.quiz) select(null);
+    });
 
   const viewport = svg.append("g");
   const statesG = viewport.append("g").attr("class", "states");
@@ -194,10 +197,10 @@
     sel
       .on("pointerenter", (ev, s) => {
         setHover(s.code);
-        if (ev.pointerType === "mouse") showTooltip(ev, s);
+        if (ev.pointerType === "mouse" && !state.quiz) showTooltip(ev, s);
       })
       .on("pointermove", (ev, s) => {
-        if (ev.pointerType === "mouse") showTooltip(ev, s);
+        if (ev.pointerType === "mouse" && !state.quiz) showTooltip(ev, s);
       })
       .on("pointerleave", () => {
         setHover(null);
@@ -206,7 +209,8 @@
       .on("click", (ev, s) => {
         ev.stopPropagation();
         hideTooltip();
-        select(state.selected === s.code ? null : s.code);
+        if (state.quiz) quizPick(s.code);
+        else select(state.selected === s.code ? null : s.code);
       });
   }
 
@@ -247,9 +251,17 @@
 
   function updateLabelVisibility() {
     const zoomedIn = state.k >= CALLOUT_HIDE_AT;
-    labelsG.attr("display", state.showLabels ? null : "none");
-    labelsG.selectAll("text").attr("display", (s) => (CALLOUTS[s.code] !== undefined && !zoomedIn ? "none" : null));
-    callouts.attr("display", state.showLabels && !zoomedIn ? null : "none");
+    // In the quiz, labels stay hidden except for states revealed by the last answer.
+    const reveal = state.quiz ? quizRevealed() : null;
+    const show = state.showLabels || !!reveal;
+    labelsG.attr("display", show ? null : "none");
+    labelsG.selectAll("text").attr("display", (s) => {
+      if (reveal && !reveal.has(s.code)) return "none";
+      return CALLOUTS[s.code] !== undefined && !zoomedIn ? "none" : null;
+    });
+    callouts.attr("display", show && !zoomedIn ? null : "none");
+    // Small states keep their callout as a click target; it shows "?" until revealed.
+    calloutsG.selectAll(".callout text").text((s) => (reveal && !reveal.has(s.code) ? "?" : s.code));
   }
 
   function focusState(code) {
@@ -274,11 +286,13 @@
 
   document.getElementById("zoom-in").addEventListener("click", () => svg.transition().duration(300).call(zoom.scaleBy, 1.6));
   document.getElementById("zoom-out").addEventListener("click", () => svg.transition().duration(300).call(zoom.scaleBy, 1 / 1.6));
-  document.getElementById("zoom-reset").addEventListener("click", () => svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity));
+  const resetZoom = () => svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity);
+  document.getElementById("zoom-reset").addEventListener("click", resetZoom);
 
   // ---------- Tones (what color each state gets) ----------
 
   function toneFor(code) {
+    if (state.quiz) return quizTone(code);
     if (!isStudied(code)) return "unstudied";
     if (!state.filter) return "studied";
     const idx = (DATA[code].specialties || []).findIndex((sp) => sp.category === state.filter);
@@ -287,7 +301,7 @@
     return "other";
   }
 
-  const DARK_TONES = new Set(["studied", "top"]);
+  const DARK_TONES = new Set(["studied", "top", "quiz-target", "quiz-right", "quiz-wrong"]);
 
   function renderMap() {
     statesG.selectAll("path.state").attr("class", (s) => `state tone-${toneFor(s.code)}`);
@@ -295,7 +309,7 @@
     labelsG.selectAll("text").classed("on-dark", (s) => DARK_TONES.has(toneFor(s.code)));
 
     const next = nextUp();
-    nextOutline.attr("d", next && !state.filter ? byCode.get(next).d : null);
+    nextOutline.attr("d", next && !state.filter && !state.quiz ? byCode.get(next).d : null);
     selectedOutline.attr("d", state.selected ? byCode.get(state.selected).d : null);
     renderRoute();
     updateLabelVisibility();
@@ -308,7 +322,7 @@
 
   function renderRoute() {
     routeG.selectAll("*").remove();
-    if (!state.showRoute) return;
+    if (!state.showRoute || state.quiz) return;
     const done = [];
     const todo = [];
     for (let i = 1; i < ROUTE.length; i++) {
@@ -395,7 +409,14 @@
     const item = (cls, text, style = "") => `<span class="legend-item"><span class="swatch ${cls}" style="${style}"></span>${text}</span>`;
     const fill = (v) => `background:var(${v})`;
     const el = document.getElementById("legend");
-    if (state.filter) {
+    if (state.quiz) {
+      el.innerHTML = [
+        item("", "Correct answer", fill("--good")),
+        item("", "Wrong pick", fill("--bad")),
+        item("", "Highlighted state", fill("--accent")),
+        `<span class="legend-note">Labels are hidden. Zoom in for small states.</span>`,
+      ].join("");
+    } else if (state.filter) {
       el.innerHTML = [
         item("", "Top specialty", fill("--fill-top")),
         item("", "Also a specialty", fill("--fill-also")),
@@ -417,7 +438,8 @@
   const panel = document.getElementById("panel");
 
   function renderPanel() {
-    if (state.selected) panel.innerHTML = stateView(state.selected);
+    if (state.quiz) panel.innerHTML = quizView();
+    else if (state.selected) panel.innerHTML = stateView(state.selected);
     else if (state.filter) panel.innerHTML = filterView(state.filter);
     else panel.innerHTML = routeView();
     panel.scrollTop = 0;
@@ -613,9 +635,11 @@
   }
 
   panel.addEventListener("click", (ev) => {
-    const t = ev.target.closest("[data-select], [data-cat], [data-action]");
+    const t = ev.target.closest("[data-quiz], [data-select], [data-cat], [data-action]");
     if (!t) return;
-    if (t.dataset.select) {
+    if (t.dataset.quiz) {
+      quizAction(t.dataset.quiz, t.dataset.value);
+    } else if (t.dataset.select) {
       select(t.dataset.select);
       focusState(t.dataset.select);
     } else if (t.dataset.cat) {
@@ -632,6 +656,317 @@
     setHover(t ? t.dataset.hover : null);
   });
   panel.addEventListener("pointerleave", () => setHover(null));
+
+  // ---------- Quiz ----------
+
+  const QUIZ_LENGTH = 10;
+  const quizToggle = document.getElementById("quiz-toggle");
+  const quizBanner = document.getElementById("quiz-banner");
+
+  function shuffle(list) {
+    const a = list.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  // Draws n codes from the pool, repeating only when the pool is smaller than n.
+  function draw(pool, n) {
+    const out = [];
+    while (out.length < n && pool.length) out.push(...shuffle(pool));
+    return out.slice(0, n);
+  }
+
+  const STATE_NAMES = [...byCode.values()].map((s) => s.name);
+  const CONNECTORS = new Set(["and", "of", "the", "&"]);
+  const stripParens = (t) => t.replace(/\s*\(.*?\)/g, "").trim();
+  // Players and places make fair clues only when they're proper names ("Bath Iron Works")
+  // rather than descriptions ("Family sugarhouses"), and when they don't give away a state's name.
+  const isProperName = (t) => t.split(/[\s,]+/).filter(Boolean).every((w) => CONNECTORS.has(w) || /^[A-Z0-9]/.test(w));
+  const givesAway = (t) => STATE_NAMES.some((n) => t.includes(n));
+
+  // Fact questions come from the studied states' data. Every state the fact fits counts as correct.
+  function buildClues(codes) {
+    const clues = new Map();
+    const add = (text, fits) => {
+      if (clues.has(text) || givesAway(text)) return;
+      const answers = codes.filter(fits);
+      if (answers.length) clues.set(text, { type: "clue", text, answers });
+    };
+    const listed = (code, specName, key, item) =>
+      (DATA[code].specialties || []).some((sp) => sp.name === specName && (sp[key] || []).map(stripParens).includes(item));
+
+    for (const code of codes) {
+      const d = DATA[code];
+      if (has(d.capital)) add(`Which state's capital is ${d.capital}?`, (x) => DATA[x].capital === d.capital);
+      if (has(d.largestCity) && d.largestCity !== d.capital) {
+        add(`Which state's largest city is ${d.largestCity}?`, (x) => DATA[x].largestCity === d.largestCity);
+      }
+      if (has(d.nickname)) add(`Which state is called "${d.nickname}"?`, (x) => DATA[x].nickname === d.nickname);
+      for (const sp of d.specialties || []) {
+        add(`Which state has "${sp.name}" as a signature industry?`, (x) => (DATA[x].specialties || []).some((o) => o.name === sp.name));
+        for (const p of (sp.players || []).map(stripParens).filter(isProperName)) {
+          add(`Which state is home to ${p}? (${sp.name})`, (x) => listed(x, sp.name, "players", p));
+        }
+        for (const p of (sp.places || []).map(stripParens).filter(isProperName)) {
+          add(`Where is ${p}? (${sp.name})`, (x) => listed(x, sp.name, "places", p));
+        }
+      }
+    }
+    return [...clues.values()];
+  }
+
+  // Wrong options come from the state's neighbors, then its division, which is the harder test.
+  function nameOptions(code) {
+    const s = byCode.get(code);
+    const candidates = [...shuffle(s.neighbors || []), ...shuffle(s.division.states), ...shuffle(ROUTE)];
+    const wrong = candidates.filter((c, i) => c !== code && candidates.indexOf(c) === i).slice(0, 3);
+    return shuffle([code, ...wrong]);
+  }
+
+  function buildQuiz(scope) {
+    const studied = ROUTE.filter(isStudied);
+    const pool = scope === "all" ? ROUTE : studied;
+    const clues = shuffle(buildClues(studied)).slice(0, studied.length >= 2 ? 4 : 0);
+    const rest = QUIZ_LENGTH - clues.length;
+    const locateCount = Math.ceil(rest / 2);
+    const mapQuestions = draw(pool, rest).map((code, i) =>
+      i < locateCount
+        ? { type: "locate", code, answers: [code] }
+        : { type: "name", code, answers: [code], options: nameOptions(code) });
+    return shuffle([...mapQuestions, ...clues]);
+  }
+
+  const quizQuestion = () => (state.quiz && state.quiz.questions ? state.quiz.questions[state.quiz.i] || null : null);
+  const quizResult = () => (state.quiz && state.quiz.questions ? state.quiz.results[state.quiz.i] || null : null);
+  const stateName = (code) => byCode.get(code).name;
+  const answerNames = (q) => q.answers.map(stateName).join(", ");
+
+  function promptText(q) {
+    if (q.type === "locate") return `Find ${stateName(q.code)} on the map.`;
+    if (q.type === "name") return "Which state is highlighted?";
+    return q.text;
+  }
+
+  function feedbackText(q, r) {
+    const fits = q.answers.length > 1 ? `Any of these fit: ${answerNames(q)}.` : null;
+    if (r.correct) return `<span class="icon good">✓</span><b>Correct.</b> ${esc(fits || `${answerNames(q)}.`)}`;
+    return `<span class="icon bad">✗</span><b>Not quite.</b> You picked ${esc(stateName(r.pick))}. ${esc(fits || `The answer is ${answerNames(q)}.`)}`;
+  }
+
+  // States whose names the last answer revealed on the map.
+  function quizRevealed() {
+    const q = quizQuestion();
+    const r = quizResult();
+    return r ? new Set([...q.answers, r.pick]) : new Set();
+  }
+
+  function quizTone(code) {
+    const q = quizQuestion();
+    const r = quizResult();
+    if (!q) return "unstudied";
+    if (r) {
+      if (q.answers.includes(code)) return "quiz-right";
+      if (code === r.pick) return "quiz-wrong";
+    } else if (q.type === "name" && code === q.code) {
+      return "quiz-target";
+    }
+    return "unstudied";
+  }
+
+  function openQuiz() {
+    hideTooltip();
+    state.selected = null;
+    state.filter = null;
+    syncHash();
+    state.quiz = { scope: studiedCount() >= 3 ? "studied" : "all", questions: null, i: 0, results: [] };
+    if (state.k > 1) resetZoom();
+    renderQuiz();
+  }
+
+  function closeQuiz() {
+    state.quiz = null;
+    resetZoom();
+    renderQuiz();
+  }
+
+  function startQuiz() {
+    Object.assign(state.quiz, { questions: buildQuiz(state.quiz.scope), i: 0, results: [] });
+    showQuestion();
+  }
+
+  function showQuestion() {
+    const q = quizQuestion();
+    if (q && q.type === "name") focusState(q.code); // zooms in on small states
+    else resetZoom(); // also cancels a zoom-in still animating from the last question
+    renderQuiz();
+  }
+
+  function quizPick(code, fromMap = true) {
+    const q = quizQuestion();
+    if (!q || quizResult() || (fromMap && q.type === "name")) return;
+    state.quiz.results[state.quiz.i] = { pick: code, correct: q.answers.includes(code) };
+    renderQuiz();
+  }
+
+  function quizNext() {
+    if (!quizResult()) return;
+    state.quiz.i += 1;
+    showQuestion();
+  }
+
+  function quizAction(action, value) {
+    if (action === "scope") {
+      state.quiz.scope = value;
+      renderQuiz();
+    } else if (action === "start") startQuiz();
+    else if (action === "pick") quizPick(value, false);
+    else if (action === "next") quizNext();
+    else if (action === "setup") {
+      state.quiz.questions = null;
+      renderQuiz();
+    } else if (action === "exit") closeQuiz();
+    else if (action === "review") {
+      closeQuiz();
+      select(value);
+      focusState(value);
+    }
+  }
+
+  function quizKey(ev) {
+    const q = quizQuestion();
+    if (ev.key === "Escape") return closeQuiz();
+    if (ev.key === "Enter" || ev.key === "ArrowRight") {
+      if (ev.key === "Enter" && /^(BUTTON|SELECT|INPUT)$/.test(ev.target.tagName)) return; // the button handles it
+      if (!state.quiz.questions) startQuiz();
+      else if (quizResult()) quizNext();
+      return;
+    }
+    if (q && q.type === "name" && !quizResult() && /^[1-4]$/.test(ev.key)) quizPick(q.options[+ev.key - 1], false);
+  }
+
+  function quizView() {
+    const qz = state.quiz;
+    if (!qz.questions) {
+      const studied = studiedCount();
+      const scopeButton = (value, label, disabled) =>
+        `<button type="button" class="seg-btn" data-quiz="scope" data-value="${value}" aria-pressed="${qz.scope === value}" ${disabled ? "disabled" : ""}>${label}</button>`;
+      return `
+        <div class="kicker">Quiz</div>
+        <h2>Test yourself</h2>
+        <p class="intro">${QUIZ_LENGTH} questions: find a state on the map, name a highlighted state, and match facts to the states you've studied. Labels stay hidden until you answer.</p>
+        <h3>Which states?</h3>
+        <div class="seg">
+          ${scopeButton("studied", `Studied (${studied})`, studied === 0)}
+          ${scopeButton("all", `All ${ROUTE.length}`, false)}
+        </div>
+        <p class="section-note quiz-note">Fact questions always come from the states you've studied.</p>
+        <div class="quiz-actions">
+          <button type="button" class="primary-btn" data-quiz="start">Start quiz</button>
+          <button type="button" class="link-btn" data-quiz="exit">Back to the map</button>
+        </div>`;
+    }
+
+    const total = qz.questions.length;
+    const score = qz.results.filter((r) => r && r.correct).length;
+    const dots = qz.questions.map((_, i) => {
+      const r = qz.results[i];
+      const cls = r ? (r.correct ? "right" : "wrong") : i === qz.i ? "current" : "";
+      return `<span class="quiz-dot ${cls}"></span>`;
+    }).join("");
+
+    if (qz.i >= total) {
+      const misses = qz.questions.map((q, i) => ({ q, r: qz.results[i] })).filter(({ r }) => !r.correct);
+      const verdict = score === total ? "A perfect round."
+        : score >= total * 0.8 ? "Strong round."
+        : score >= total * 0.5 ? "Getting there."
+        : "Keep going; it gets easier every round.";
+      return `
+        <div class="kicker">Quiz · results</div>
+        <div class="quiz-score">${score}<span> / ${total}</span></div>
+        <p class="intro">${verdict}</p>
+        <div class="quiz-dots">${dots}</div>
+        ${misses.length ? `<h3>Review what you missed</h3>${misses.map(({ q, r }) => `
+          <button type="button" class="filter-item" data-quiz="review" data-value="${q.answers[0]}">
+            <div class="top"><span>${esc(answerNames(q))}</span><span class="lq-inline">Review →</span></div>
+            <div class="what">${esc(promptText(q))} You picked ${esc(stateName(r.pick))}.</div>
+          </button>`).join("")}` : ""}
+        <div class="quiz-actions">
+          <button type="button" class="primary-btn" data-quiz="start">Play again</button>
+          <button type="button" class="link-btn" data-quiz="setup">Change settings</button>
+          <button type="button" class="link-btn" data-quiz="exit">Exit quiz</button>
+        </div>`;
+    }
+
+    const q = qz.questions[qz.i];
+    const r = qz.results[qz.i];
+    let body = "";
+    if (q.type === "name") {
+      body = `<div class="quiz-options">${q.options.map((c, i) => {
+        const cls = r ? (q.answers.includes(c) ? " right" : c === r.pick ? " wrong" : "") : "";
+        return `<button type="button" class="quiz-option${cls}" data-quiz="pick" data-value="${c}" ${r ? "disabled" : ""}>
+          <span class="key">${i + 1}</span>${esc(stateName(c))}</button>`;
+      }).join("")}</div>`;
+    } else if (!r) {
+      body = `<p class="quiz-hint">Click the state on the map. Small states have "?" markers on the right, or zoom in.</p>`;
+    }
+    const feedback = r
+      ? `<div class="quiz-feedback">${feedbackText(q, r)}</div>
+         <div class="quiz-actions">
+           <button type="button" class="primary-btn" data-quiz="next">${qz.i + 1 === total ? "See results" : "Next question"} →</button>
+           <span class="key-hint">or press Enter</span>
+         </div>`
+      : "";
+
+    return `
+      <div class="kicker">Quiz · question ${qz.i + 1} of ${total} · score ${score}</div>
+      <div class="quiz-dots">${dots}</div>
+      <div class="quiz-prompt">${esc(promptText(q))}</div>
+      ${body}
+      ${feedback}
+      <div class="quiz-actions"><button type="button" class="link-btn" data-quiz="exit">Exit quiz</button></div>`;
+  }
+
+  // A one-line copy of the question over the map, so it stays in view on small screens.
+  function renderQuizBanner() {
+    const q = quizQuestion();
+    if (!q) {
+      quizBanner.hidden = true;
+      return;
+    }
+    const r = quizResult();
+    const last = state.quiz.i + 1 === state.quiz.questions.length;
+    const text = r
+      ? `${r.correct ? `<span class="icon good">✓</span>Correct: ` : `<span class="icon bad">✗</span>Answer: `}${esc(answerNames(q))}`
+      : esc(q.type === "name" ? "Which state is highlighted? Pick its name." : promptText(q));
+    quizBanner.innerHTML = `
+      <span class="q-num">${state.quiz.i + 1}/${state.quiz.questions.length}</span>
+      <span class="q-text">${text}</span>
+      ${r ? `<button type="button" class="banner-next" data-quiz="next">${last ? "Results" : "Next"} →</button>` : ""}`;
+    quizBanner.hidden = false;
+  }
+
+  function renderQuiz() {
+    const on = !!state.quiz;
+    quizToggle.setAttribute("aria-pressed", String(on));
+    quizToggle.textContent = on ? "Exit quiz" : "Quiz";
+    industrySelect.disabled = on;
+    document.getElementById("toggle-labels").disabled = on;
+    document.getElementById("toggle-route").disabled = on;
+    renderIndustryPicker();
+    renderLegend();
+    renderMap();
+    renderPanel();
+    renderQuizBanner();
+  }
+
+  quizToggle.addEventListener("click", () => (state.quiz ? closeQuiz() : openQuiz()));
+  quizBanner.addEventListener("click", (ev) => {
+    const t = ev.target.closest("[data-quiz]");
+    if (t) quizAction(t.dataset.quiz, t.dataset.value);
+  });
 
   // ---------- State changes ----------
 
@@ -668,6 +1003,10 @@
   });
 
   document.addEventListener("keydown", (ev) => {
+    if (state.quiz) {
+      quizKey(ev);
+      return;
+    }
     if (ev.key !== "Escape") return;
     if (state.selected) select(null);
     else if (state.filter) setFilter(null);
@@ -699,6 +1038,7 @@
   }
 
   function applyHash() {
+    if (state.quiz) closeQuiz(); // following a link means leaving the quiz
     const parts = decodeURIComponent(location.hash.slice(1)).split("/");
     state.filter = parts.find((p) => catById.has(p)) || null;
     const code = parts.map((p) => p.toUpperCase()).find((p) => byCode.has(p)) || null;
