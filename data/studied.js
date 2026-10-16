@@ -10,4 +10,5 @@ window.STUDIED = [
   "CT",
   "NY",
   "NJ",
+  "PA",
 ];
